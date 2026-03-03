@@ -9,41 +9,57 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
-    // تحقق من تسجيل الدخول
-    const adminUser = localStorage.getItem('adminUser');
-    
-    if (!adminUser && pathname !== '/admin/login') {
-      router.push('/admin/login');
+    setIsClient(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isClient) return;
+
+    // Skip auth check for login page
+    if (pathname === '/admin/login') {
+      setIsLoading(false);
+      setIsAuthenticated(false);
       return;
     }
 
-    if (adminUser) {
-      try {
-        const user = JSON.parse(adminUser);
-        if (user.role !== 'admin') {
-          localStorage.removeItem('adminUser');
-          router.push('/admin/login');
-          return;
-        }
-        setIsAuthenticated(true);
-      } catch {
-        localStorage.removeItem('adminUser');
-        router.push('/admin/login');
-        return;
-      }
+    // Check admin authentication
+    const adminUser = localStorage.getItem('adminUser');
+    
+    if (!adminUser) {
+      setIsAuthenticated(false);
+      setIsLoading(false);
+      router.replace('/admin/login');
+      return;
     }
 
-    setIsLoading(false);
-  }, [pathname, router]);
+    try {
+      const user = JSON.parse(adminUser);
+      if (user.role !== 'admin') {
+        localStorage.removeItem('adminUser');
+        setIsAuthenticated(false);
+        setIsLoading(false);
+        router.replace('/admin/login');
+        return;
+      }
+      setIsAuthenticated(true);
+      setIsLoading(false);
+    } catch {
+      localStorage.removeItem('adminUser');
+      setIsAuthenticated(false);
+      setIsLoading(false);
+      router.replace('/admin/login');
+    }
+  }, [pathname, router, isClient]);
 
   // صفحة تسجيل الدخول لا تحتاج Sidebar
   if (pathname === '/admin/login') {
     return <>{children}</>;
   }
 
-  if (isLoading) {
+  if (!isClient || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
