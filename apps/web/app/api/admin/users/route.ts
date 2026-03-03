@@ -10,49 +10,230 @@ export async function GET(request: NextRequest) {
     const role = searchParams.get('role') || '';
     const kyc_status = searchParams.get('kyc_status') || '';
     
-    let query = `
-      SELECT 
-        u.id,
-        u.name,
-        u.email,
-        u.role,
-        u.kyc_status,
-        u.avatar,
-        u.created_at,
-        COALESCE(w.balance, 0) as balance
-      FROM users u
-      LEFT JOIN wallets w ON u.id = w.user_id
-      WHERE 1=1
-    `;
+    // Build the query with filters
+    let users;
     
-    const params: any[] = [];
-    let paramCount = 1;
-    
-    if (search) {
-      query += ` AND (u.name ILIKE $${paramCount} OR u.email ILIKE $${paramCount})`;
-      params.push(`%${search}%`);
-      paramCount++;
-    }
-    
-    if (role) {
-      query += ` AND u.role = $${paramCount}`;
-      params.push(role);
-      paramCount++;
-    }
-    
-    if (kyc_status) {
+    if (!search && !role && !kyc_status) {
+      // No filters - get all users
+      users = await sql`
+        SELECT 
+          u.id,
+          u.name,
+          u.email,
+          u.role,
+          u.kyc_status,
+          u.avatar,
+          u.created_at,
+          COALESCE(w.balance, 0) as balance
+        FROM users u
+        LEFT JOIN wallets w ON u.id = w.user_id
+        ORDER BY u.created_at DESC
+      `;
+    } else if (search && !role && !kyc_status) {
+      // Only search filter
+      const searchPattern = `%${search}%`;
+      users = await sql`
+        SELECT 
+          u.id,
+          u.name,
+          u.email,
+          u.role,
+          u.kyc_status,
+          u.avatar,
+          u.created_at,
+          COALESCE(w.balance, 0) as balance
+        FROM users u
+        LEFT JOIN wallets w ON u.id = w.user_id
+        WHERE u.name ILIKE ${searchPattern} OR u.email ILIKE ${searchPattern}
+        ORDER BY u.created_at DESC
+      `;
+    } else if (!search && role && !kyc_status) {
+      // Only role filter
+      users = await sql`
+        SELECT 
+          u.id,
+          u.name,
+          u.email,
+          u.role,
+          u.kyc_status,
+          u.avatar,
+          u.created_at,
+          COALESCE(w.balance, 0) as balance
+        FROM users u
+        LEFT JOIN wallets w ON u.id = w.user_id
+        WHERE u.role = ${role}
+        ORDER BY u.created_at DESC
+      `;
+    } else if (!search && !role && kyc_status) {
+      // Only kyc_status filter
       if (kyc_status === 'not_verified') {
-        query += ` AND (u.kyc_status IS NULL OR u.kyc_status = 'not_verified')`;
+        users = await sql`
+          SELECT 
+            u.id,
+            u.name,
+            u.email,
+            u.role,
+            u.kyc_status,
+            u.avatar,
+            u.created_at,
+            COALESCE(w.balance, 0) as balance
+          FROM users u
+          LEFT JOIN wallets w ON u.id = w.user_id
+          WHERE u.kyc_status IS NULL OR u.kyc_status = 'not_verified'
+          ORDER BY u.created_at DESC
+        `;
       } else {
-        query += ` AND u.kyc_status = $${paramCount}`;
-        params.push(kyc_status);
-        paramCount++;
+        users = await sql`
+          SELECT 
+            u.id,
+            u.name,
+            u.email,
+            u.role,
+            u.kyc_status,
+            u.avatar,
+            u.created_at,
+            COALESCE(w.balance, 0) as balance
+          FROM users u
+          LEFT JOIN wallets w ON u.id = w.user_id
+          WHERE u.kyc_status = ${kyc_status}
+          ORDER BY u.created_at DESC
+        `;
+      }
+    } else if (search && role && !kyc_status) {
+      // Search + role filters
+      const searchPattern = `%${search}%`;
+      users = await sql`
+        SELECT 
+          u.id,
+          u.name,
+          u.email,
+          u.role,
+          u.kyc_status,
+          u.avatar,
+          u.created_at,
+          COALESCE(w.balance, 0) as balance
+        FROM users u
+        LEFT JOIN wallets w ON u.id = w.user_id
+        WHERE (u.name ILIKE ${searchPattern} OR u.email ILIKE ${searchPattern})
+          AND u.role = ${role}
+        ORDER BY u.created_at DESC
+      `;
+    } else if (search && !role && kyc_status) {
+      // Search + kyc_status filters
+      const searchPattern = `%${search}%`;
+      if (kyc_status === 'not_verified') {
+        users = await sql`
+          SELECT 
+            u.id,
+            u.name,
+            u.email,
+            u.role,
+            u.kyc_status,
+            u.avatar,
+            u.created_at,
+            COALESCE(w.balance, 0) as balance
+          FROM users u
+          LEFT JOIN wallets w ON u.id = w.user_id
+          WHERE (u.name ILIKE ${searchPattern} OR u.email ILIKE ${searchPattern})
+            AND (u.kyc_status IS NULL OR u.kyc_status = 'not_verified')
+          ORDER BY u.created_at DESC
+        `;
+      } else {
+        users = await sql`
+          SELECT 
+            u.id,
+            u.name,
+            u.email,
+            u.role,
+            u.kyc_status,
+            u.avatar,
+            u.created_at,
+            COALESCE(w.balance, 0) as balance
+          FROM users u
+          LEFT JOIN wallets w ON u.id = w.user_id
+          WHERE (u.name ILIKE ${searchPattern} OR u.email ILIKE ${searchPattern})
+            AND u.kyc_status = ${kyc_status}
+          ORDER BY u.created_at DESC
+        `;
+      }
+    } else if (!search && role && kyc_status) {
+      // Role + kyc_status filters
+      if (kyc_status === 'not_verified') {
+        users = await sql`
+          SELECT 
+            u.id,
+            u.name,
+            u.email,
+            u.role,
+            u.kyc_status,
+            u.avatar,
+            u.created_at,
+            COALESCE(w.balance, 0) as balance
+          FROM users u
+          LEFT JOIN wallets w ON u.id = w.user_id
+          WHERE u.role = ${role}
+            AND (u.kyc_status IS NULL OR u.kyc_status = 'not_verified')
+          ORDER BY u.created_at DESC
+        `;
+      } else {
+        users = await sql`
+          SELECT 
+            u.id,
+            u.name,
+            u.email,
+            u.role,
+            u.kyc_status,
+            u.avatar,
+            u.created_at,
+            COALESCE(w.balance, 0) as balance
+          FROM users u
+          LEFT JOIN wallets w ON u.id = w.user_id
+          WHERE u.role = ${role}
+            AND u.kyc_status = ${kyc_status}
+          ORDER BY u.created_at DESC
+        `;
+      }
+    } else {
+      // All filters - search + role + kyc_status
+      const searchPattern = `%${search}%`;
+      if (kyc_status === 'not_verified') {
+        users = await sql`
+          SELECT 
+            u.id,
+            u.name,
+            u.email,
+            u.role,
+            u.kyc_status,
+            u.avatar,
+            u.created_at,
+            COALESCE(w.balance, 0) as balance
+          FROM users u
+          LEFT JOIN wallets w ON u.id = w.user_id
+          WHERE (u.name ILIKE ${searchPattern} OR u.email ILIKE ${searchPattern})
+            AND u.role = ${role}
+            AND (u.kyc_status IS NULL OR u.kyc_status = 'not_verified')
+          ORDER BY u.created_at DESC
+        `;
+      } else {
+        users = await sql`
+          SELECT 
+            u.id,
+            u.name,
+            u.email,
+            u.role,
+            u.kyc_status,
+            u.avatar,
+            u.created_at,
+            COALESCE(w.balance, 0) as balance
+          FROM users u
+          LEFT JOIN wallets w ON u.id = w.user_id
+          WHERE (u.name ILIKE ${searchPattern} OR u.email ILIKE ${searchPattern})
+            AND u.role = ${role}
+            AND u.kyc_status = ${kyc_status}
+          ORDER BY u.created_at DESC
+        `;
       }
     }
-    
-    query += ` ORDER BY u.created_at DESC`;
-    
-    const users = await sql(query, params);
 
     return NextResponse.json({ users });
   } catch (error: any) {
