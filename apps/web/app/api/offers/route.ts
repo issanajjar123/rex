@@ -1,48 +1,55 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 
-export const dynamic = 'force-dynamic';
-export const runtime = 'edge';
+const sql = neon(process.env.DATABASE_URL!);
 
 export async function GET(request: NextRequest) {
   try {
-    const sql = neon(process.env.DATABASE_URL!);
-    
-    const offers = await sql`
-      SELECT 
-        o.*,
-        u.name as user_name,
-        u.avatar as user_avatar
-      FROM offers o
-      LEFT JOIN users u ON o.user_id = u.id
-      ORDER BY o.created_at DESC
-    `;
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
 
-    return NextResponse.json({ success: true, offers });
+    let offers;
+    if (userId) {
+      // Get user's offers (all statuses)
+      offers = await sql`
+        SELECT * FROM offers 
+        WHERE user_id = ${userId}
+        ORDER BY created_at DESC
+      `;
+    } else {
+      // Public: only show approved offers
+      offers = await sql`
+        SELECT o.*, u.name as user_name
+        FROM offers o
+        LEFT JOIN users u ON o.user_id = u.id
+        WHERE o.approval_status = 'approved' AND o.status = 'active'
+        ORDER BY o.created_at DESC
+      `;
+    }
+
+    return NextResponse.json({ offers });
   } catch (error) {
     console.error('Error fetching offers:', error);
-    return NextResponse.json({ success: false, error: 'Failed to fetch offers' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to fetch offers' }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { user_id, title, description, price, category } = body;
+    const { userId, title, description, price, category } = body;
 
-    if (!user_id || !title || !description || !price) {
+    if (!userId || !title || !description || !price) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    const sql = neon(process.env.DATABASE_URL!);
-    
-    const [offer] = await sql`
-      INSERT INTO offers (user_id, title, description, price, category, status, created_at)
-      VALUES (${user_id}, ${title}, ${description}, ${price}, ${category || 'other'}, 'active', NOW())
+    const result = await sql`
+      INSERT INTO offers (user_id, title, description, price, category, status, approval_status, created_at)
+      VALUES (${userId}, ${title}, ${description}, ${price}, ${category}, 'pending', 'pending_approval', NOW())
       RETURNING *
     `;
 
-    return NextResponse.json(offer);
+    return NextResponse.json({ offer: result[0], message: 'Offer submitted for approval' });
   } catch (error) {
     console.error('Error creating offer:', error);
     return NextResponse.json({ error: 'Failed to create offer' }, { status: 500 });

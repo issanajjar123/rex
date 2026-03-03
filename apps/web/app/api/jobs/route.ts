@@ -1,139 +1,65 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 
 const sql = neon(process.env.DATABASE_URL!);
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('user_id');
-    const action = searchParams.get('action');
-    const jobId = searchParams.get('job_id');
+    const userId = searchParams.get('userId');
 
-    if (action === 'applications' && jobId) {
-      const applications = await sql`
-        SELECT ja.*, u.name as applicant_name, u.avatar, u.email
-        FROM job_applications ja
-        JOIN users u ON ja.user_id = u.id
-        WHERE ja.job_id = ${jobId}
-        ORDER BY ja.created_at DESC
-      `;
-      return NextResponse.json(applications);
-    }
-
-    if (action === 'my-applications' && userId) {
-      const applications = await sql`
-        SELECT ja.*, j.title, j.budget, j.location
-        FROM job_applications ja
-        JOIN jobs j ON ja.job_id = j.id
-        WHERE ja.user_id = ${userId}
-        ORDER BY ja.created_at DESC
-      `;
-      return NextResponse.json(applications);
-    }
-
+    let jobs;
     if (userId) {
-      const jobs = await sql`
+      // Get user's jobs (all statuses)
+      jobs = await sql`
         SELECT * FROM jobs 
         WHERE user_id = ${userId}
         ORDER BY created_at DESC
       `;
-      return NextResponse.json(jobs);
+    } else {
+      // Public: only show approved jobs
+      jobs = await sql`
+        SELECT j.*, u.name as user_name
+        FROM jobs j
+        LEFT JOIN users u ON j.user_id = u.id
+        WHERE j.approval_status = 'approved' AND j.status = 'open'
+        ORDER BY j.created_at DESC
+      `;
     }
 
-    const jobs = await sql`
-      SELECT j.*, u.name as poster_name
-      FROM jobs j
-      JOIN users u ON j.user_id = u.id
-      WHERE j.status = 'open'
-      ORDER BY j.created_at DESC
-    `;
-    return NextResponse.json(jobs);
+    return NextResponse.json({ jobs });
   } catch (error) {
-    console.error('خطأ في جلب الوظائف:', error);
-    return NextResponse.json({ error: 'حدث خطأ في الخادم' }, { status: 500 });
+    console.error('Error fetching jobs:', error);
+    return NextResponse.json({ error: 'Failed to fetch jobs' }, { status: 500 });
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { action } = body;
+    const { userId, title, description, budget, location, category, salary, job_type, required_skills, work_type } = body;
 
-    if (action === 'apply') {
-      const { job_id, user_id, cover_letter, cv_url, portfolio_url } = body;
-      
-      const applications = await sql`
-        INSERT INTO job_applications (job_id, user_id, cover_letter, cv_url, portfolio_url, status)
-        VALUES (${job_id}, ${user_id}, ${cover_letter}, ${cv_url || null}, ${portfolio_url || null}, 'pending')
-        RETURNING *
-      `;
-      
-      return NextResponse.json(applications[0]);
+    if (!userId || !title || !description) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    if (action === 'update-status') {
-      const { application_id, status } = body;
-      
-      const applications = await sql`
-        UPDATE job_applications
-        SET status = ${status}
-        WHERE id = ${application_id}
-        RETURNING *
-      `;
-      
-      return NextResponse.json(applications[0]);
-    }
-
-    if (action === 'create-escrow') {
-      const { application_id, buyer_id, seller_id, amount, commission } = body;
-      
-      const escrows = await sql`
-        INSERT INTO escrow_transactions (buyer_id, seller_id, amount, commission, related_type, related_id, status)
-        VALUES (${buyer_id}, ${seller_id}, ${amount}, ${commission}, 'job', ${application_id}, 'pending')
-        RETURNING *
-      `;
-
-      await sql`
-        UPDATE job_applications
-        SET escrow_id = ${escrows[0].id}
-        WHERE id = ${application_id}
-      `;
-      
-      return NextResponse.json(escrows[0]);
-    }
-
-    // Create job
-    const { user_id, title, description, budget, location, category, salary, job_type, required_skills, work_type } = body;
-    
-    const jobs = await sql`
-      INSERT INTO jobs (user_id, title, description, budget, location, category, status, salary, job_type, required_skills, work_type)
-      VALUES (${user_id}, ${title}, ${description}, ${budget || 0}, ${location}, ${category}, 'open', ${salary || null}, ${job_type || null}, ${required_skills || null}, ${work_type || null})
-      RETURNING *
-    `;
-    
-    return NextResponse.json(jobs[0]);
-  } catch (error) {
-    console.error('خطأ في إنشاء الوظيفة:', error);
-    return NextResponse.json({ error: 'حدث خطأ في الخادم' }, { status: 500 });
-  }
-}
-
-export async function PATCH(request: Request) {
-  try {
-    const body = await request.json();
-    const { job_id, status } = body;
-
-    const jobs = await sql`
-      UPDATE jobs
-      SET status = ${status}
-      WHERE id = ${job_id}
+    const result = await sql`
+      INSERT INTO jobs (
+        user_id, title, description, budget, location, category, 
+        salary, job_type, required_skills, work_type, 
+        status, approval_status, created_at
+      )
+      VALUES (
+        ${userId}, ${title}, ${description}, ${budget}, ${location}, ${category},
+        ${salary}, ${job_type}, ${required_skills}, ${work_type},
+        'pending', 'pending_approval', NOW()
+      )
       RETURNING *
     `;
 
-    return NextResponse.json(jobs[0]);
+    return NextResponse.json({ job: result[0], message: 'Job submitted for approval' });
   } catch (error) {
-    console.error('خطأ في تحديث الوظيفة:', error);
-    return NextResponse.json({ error: 'حدث خطأ في الخادم' }, { status: 500 });
+    console.error('Error creating job:', error);
+    return NextResponse.json({ error: 'Failed to create job' }, { status: 500 });
   }
 }

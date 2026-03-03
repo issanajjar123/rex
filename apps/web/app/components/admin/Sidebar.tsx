@@ -21,6 +21,7 @@ export default function AdminSidebar() {
   const menuItems = [
     { href: '/admin/dashboard', icon: LayoutDashboard, label: 'لوحة التحكم' },
     { href: '/admin/users', icon: Users, label: 'المستخدمين' },
+    { href: '/admin/approvals', icon: UserCheck, label: 'الموافقات' },
     { href: '/admin/jobs', icon: Briefcase, label: 'الوظائف' },
     { href: '/admin/projects', icon: FolderKanban, label: 'المشاريع' },
     { href: '/admin/offers', icon: DollarSign, label: 'العروض' },
