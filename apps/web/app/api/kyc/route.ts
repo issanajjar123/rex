@@ -1,113 +1,157 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 
 const sql = neon(process.env.DATABASE_URL!);
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
     const admin = searchParams.get('admin');
 
     if (admin === 'true') {
-      // Admin view - get all KYC requests
+      // Get all verifications with user info for admin
       const verifications = await sql`
-        SELECT k.*, u.name, u.email
-        FROM kyc_verifications k
-        JOIN users u ON k.user_id = u.id
-        ORDER BY k.created_at DESC
+        SELECT 
+          kv.*,
+          u.name as user_name,
+          u.email as user_email
+        FROM kyc_verifications kv
+        LEFT JOIN users u ON kv.user_id = u.id
+        ORDER BY 
+          CASE kv.status 
+            WHEN 'pending' THEN 1
+            WHEN 'approved' THEN 2
+            WHEN 'rejected' THEN 3
+          END,
+          kv.created_at DESC
       `;
-      return NextResponse.json(verifications);
+      
+      return NextResponse.json({ verifications });
     }
 
     if (!userId) {
-      return NextResponse.json({ error: 'معرف المستخدم مطلوب' }, { status: 400 });
+      return NextResponse.json({ error: 'User ID required' }, { status: 400 });
     }
 
-    const verifications = await sql`
+    const verification = await sql`
       SELECT * FROM kyc_verifications 
       WHERE user_id = ${userId}
-      ORDER BY created_at DESC
+      ORDER BY created_at DESC 
       LIMIT 1
     `;
 
-    return NextResponse.json(verifications[0] || null);
+    return NextResponse.json({ verification: verification[0] || null });
   } catch (error) {
-    console.error('خطأ في جلب التحقق:', error);
-    return NextResponse.json({ error: 'حدث خطأ في الخادم' }, { status: 500 });
+    console.error('KYC GET error:', error);
+    return NextResponse.json({ error: 'Failed to fetch verifications' }, { status: 500 });
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { 
-      user_id, 
-      full_name, 
-      id_number, 
-      date_of_birth, 
-      address,
-      id_front_url,
-      id_back_url,
-      selfie_url
+      userId, 
+      idFrontUrl, 
+      idBackUrl, 
+      selfieUrl, 
+      fullName, 
+      idNumber, 
+      dateOfBirth, 
+      address 
     } = body;
 
-    const verifications = await sql`
+    if (!userId || !idFrontUrl || !idBackUrl || !selfieUrl || !fullName || !idNumber || !dateOfBirth || !address) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
+    // Check if user already has a pending or approved verification
+    const existing = await sql`
+      SELECT id, status FROM kyc_verifications 
+      WHERE user_id = ${userId} 
+      AND status IN ('pending', 'approved')
+      LIMIT 1
+    `;
+
+    if (existing.length > 0) {
+      return NextResponse.json({ 
+        error: existing[0].status === 'approved' 
+          ? 'Already verified' 
+          : 'Verification already pending' 
+      }, { status: 400 });
+    }
+
+    const result = await sql`
       INSERT INTO kyc_verifications (
-        user_id, full_name, id_number, date_of_birth, address,
-        id_front_url, id_back_url, selfie_url, status
-      )
-      VALUES (
-        ${user_id}, ${full_name}, ${id_number}, ${date_of_birth}, ${address},
-        ${id_front_url}, ${id_back_url}, ${selfie_url}, 'pending'
+        user_id, id_front_url, id_back_url, selfie_url,
+        full_name, id_number, date_of_birth, address, status
+      ) VALUES (
+        ${userId}, ${idFrontUrl}, ${idBackUrl}, ${selfieUrl},
+        ${fullName}, ${idNumber}, ${dateOfBirth}, ${address}, 'pending'
       )
       RETURNING *
     `;
 
     // Update user KYC status
     await sql`
-      UPDATE users
-      SET kyc_status = 'pending'
-      WHERE id = ${user_id}
+      UPDATE users 
+      SET kyc_status = 'pending' 
+      WHERE id = ${userId}
     `;
 
-    return NextResponse.json(verifications[0]);
+    return NextResponse.json({ verification: result[0] });
   } catch (error) {
-    console.error('خطأ في التحقق:', error);
-    return NextResponse.json({ error: 'حدث خطأ في الخادم' }, { status: 500 });
+    console.error('KYC POST error:', error);
+    return NextResponse.json({ error: 'Failed to submit verification' }, { status: 500 });
   }
 }
 
-export async function PATCH(request: Request) {
+export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { kyc_id, status, rejection_reason, reviewed_by } = body;
+    const { verificationId, status, rejectionReason, reviewerId } = body;
 
+    if (!verificationId || !status || !reviewerId) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
+    if (!['approved', 'rejected'].includes(status)) {
+      return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
+    }
+
+    // Get verification to update user
+    const verification = await sql`
+      SELECT user_id FROM kyc_verifications WHERE id = ${verificationId}
+    `;
+
+    if (verification.length === 0) {
+      return NextResponse.json({ error: 'Verification not found' }, { status: 404 });
+    }
+
+    const userId = verification[0].user_id;
+
+    // Update verification
     await sql`
-      UPDATE kyc_verifications
-      SET status = ${status}, 
-          rejection_reason = ${rejection_reason || null},
-          reviewed_by = ${reviewed_by || null},
-          reviewed_at = NOW()
-      WHERE id = ${kyc_id}
+      UPDATE kyc_verifications 
+      SET 
+        status = ${status},
+        rejection_reason = ${rejectionReason || null},
+        reviewed_by = ${reviewerId},
+        reviewed_at = NOW()
+      WHERE id = ${verificationId}
     `;
 
     // Update user KYC status
-    const verifications = await sql`
-      SELECT user_id FROM kyc_verifications WHERE id = ${kyc_id}
+    await sql`
+      UPDATE users 
+      SET kyc_status = ${status} 
+      WHERE id = ${userId}
     `;
 
-    if (verifications.length > 0) {
-      await sql`
-        UPDATE users
-        SET kyc_status = ${status}
-        WHERE id = ${verifications[0].user_id}
-      `;
-    }
-
-    return NextResponse.json({ message: 'تم التحديث بنجاح' });
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('خطأ في تحديث التحقق:', error);
-    return NextResponse.json({ error: 'حدث خطأ في الخادم' }, { status: 500 });
+    console.error('KYC PUT error:', error);
+    return NextResponse.json({ error: 'Failed to update verification' }, { status: 500 });
   }
 }

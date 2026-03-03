@@ -5,70 +5,74 @@ const sql = neon(process.env.DATABASE_URL!);
 
 export async function GET(request: NextRequest) {
   try {
-    // إحصائيات المستخدمين
-    const totalUsers = await sql`SELECT COUNT(*) as count FROM users`;
+    // Get total users count
+    const usersCount = await sql`SELECT COUNT(*) as total FROM users WHERE role != 'admin'`;
+    
+    // Get new users today
     const newUsersToday = await sql`
       SELECT COUNT(*) as count FROM users 
-      WHERE DATE(created_at) = CURRENT_DATE
+      WHERE DATE(created_at) = CURRENT_DATE AND role != 'admin'
     `;
-    const verifiedUsers = await sql`
-      SELECT COUNT(*) as count FROM users 
-      WHERE kyc_status = 'verified'
+    
+    // Get verified users count
+    const verifiedUsers = await sql`SELECT COUNT(*) as count FROM users WHERE kyc_status = 'verified'`;
+    
+    // Get jobs stats
+    const jobsStats = await sql`
+      SELECT 
+        COUNT(*) as total,
+        COUNT(*) FILTER (WHERE status = 'open') as active
+      FROM jobs
     `;
-
-    // إحصائيات الوظائف
-    const totalJobs = await sql`SELECT COUNT(*) as count FROM jobs`;
-    const activeJobs = await sql`
-      SELECT COUNT(*) as count FROM jobs 
-      WHERE status = 'active'
+    
+    // Get projects stats
+    const projectsStats = await sql`
+      SELECT 
+        COUNT(*) as total,
+        COUNT(*) FILTER (WHERE status = 'open') as active
+      FROM projects
     `;
-
-    // إحصائيات المشاريع
-    const totalProjects = await sql`SELECT COUNT(*) as count FROM projects`;
-    const activeProjects = await sql`
-      SELECT COUNT(*) as count FROM projects 
-      WHERE status = 'active'
+    
+    // Get offers stats
+    const offersStats = await sql`
+      SELECT 
+        COUNT(*) as total,
+        COUNT(*) FILTER (WHERE status = 'active') as active
+      FROM offers
     `;
-
-    // إحصائيات العروض
-    const totalOffers = await sql`SELECT COUNT(*) as count FROM offers`;
-    const activeOffers = await sql`
-      SELECT COUNT(*) as count FROM offers 
-      WHERE status = 'active'
+    
+    // Get wallet stats
+    const walletStats = await sql`
+      SELECT 
+        COALESCE(SUM(balance), 0) as total_balance,
+        COALESCE(SUM(held_balance), 0) as total_held
+      FROM wallets
     `;
-
-    // إحصائيات المحفظة
-    const totalBalance = await sql`
-      SELECT COALESCE(SUM(balance), 0) as total FROM wallets
+    
+    // Get escrow stats
+    const escrowStats = await sql`
+      SELECT 
+        COUNT(*) FILTER (WHERE status = 'pending' OR status = 'held') as active,
+        COALESCE(SUM(commission), 0) as total_commission
+      FROM escrow_transactions
     `;
-    const totalHeld = await sql`
-      SELECT COALESCE(SUM(held_balance), 0) as total FROM wallets
+    
+    // Get pending KYC count
+    const pendingKyc = await sql`SELECT COUNT(*) as count FROM kyc_verifications WHERE status = 'pending'`;
+    
+    // Get pending withdrawal requests
+    const pendingWithdrawals = await sql`SELECT COUNT(*) as count FROM withdrawal_requests WHERE status = 'pending'`;
+    
+    // Get recent users
+    const recentUsers = await sql`
+      SELECT id, name, email, role, kyc_status, created_at 
+      FROM users 
+      WHERE role != 'admin'
+      ORDER BY created_at DESC 
+      LIMIT 10
     `;
-
-    // إحصائيات Escrow
-    const activeEscrow = await sql`
-      SELECT COUNT(*) as count FROM escrow_transactions 
-      WHERE status = 'held'
-    `;
-    const totalCommission = await sql`
-      SELECT COALESCE(SUM(commission), 0) as total 
-      FROM escrow_transactions 
-      WHERE status = 'released'
-    `;
-
-    // طلبات KYC المعلقة
-    const pendingKyc = await sql`
-      SELECT COUNT(*) as count FROM kyc_verifications 
-      WHERE status = 'pending'
-    `;
-
-    // طلبات السحب المعلقة
-    const pendingWithdrawals = await sql`
-      SELECT COUNT(*) as count FROM withdrawal_requests 
-      WHERE status = 'pending'
-    `;
-
-    // آخر المعاملات
+    
+    // Get recent wallet transactions
     const recentTransactions = await sql`
       SELECT 
         wt.id,
@@ -84,52 +88,41 @@ export async function GET(request: NextRequest) {
       LIMIT 10
     `;
 
-    // آخر المستخدمين
-    const recentUsers = await sql`
-      SELECT id, name, email, role, kyc_status, created_at
-      FROM users
-      ORDER BY created_at DESC
-      LIMIT 10
-    `;
-
     return NextResponse.json({
       users: {
-        total: parseInt(totalUsers[0].count),
+        total: parseInt(usersCount[0].total),
         newToday: parseInt(newUsersToday[0].count),
-        verified: parseInt(verifiedUsers[0].count),
+        verified: parseInt(verifiedUsers[0].count)
       },
       jobs: {
-        total: parseInt(totalJobs[0].count),
-        active: parseInt(activeJobs[0].count),
+        total: parseInt(jobsStats[0].total),
+        active: parseInt(jobsStats[0].active)
       },
       projects: {
-        total: parseInt(totalProjects[0].count),
-        active: parseInt(activeProjects[0].count),
+        total: parseInt(projectsStats[0].total),
+        active: parseInt(projectsStats[0].active)
       },
       offers: {
-        total: parseInt(totalOffers[0].count),
-        active: parseInt(activeOffers[0].count),
+        total: parseInt(offersStats[0].total),
+        active: parseInt(offersStats[0].active)
       },
       wallet: {
-        totalBalance: parseFloat(totalBalance[0].total),
-        totalHeld: parseFloat(totalHeld[0].total),
+        totalBalance: parseFloat(walletStats[0].total_balance),
+        totalHeld: parseFloat(walletStats[0].total_held)
       },
       escrow: {
-        active: parseInt(activeEscrow[0].count),
-        totalCommission: parseFloat(totalCommission[0].total),
+        active: parseInt(escrowStats[0].active),
+        totalCommission: parseFloat(escrowStats[0].total_commission)
       },
       pending: {
         kyc: parseInt(pendingKyc[0].count),
-        withdrawals: parseInt(pendingWithdrawals[0].count),
+        withdrawals: parseInt(pendingWithdrawals[0].count)
       },
-      recentTransactions,
       recentUsers,
+      recentTransactions
     });
-  } catch (error) {
-    console.error('Stats error:', error);
-    return NextResponse.json(
-      { error: 'حدث خطأ في جلب الإحصائيات' },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    console.error('Error fetching admin stats:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
