@@ -48,16 +48,6 @@ export default function BottomNav() {
             <span className={`text-[10px] font-medium ${isActive('/projects') ? 'text-purple-600' : 'text-gray-500'} transition-colors`}>Projects</span>
           </Link>
 
-          <Link href="/jobs" className="flex flex-col items-center gap-1 min-w-[50px] group">
-            <div className="relative p-1.5">
-              <Search 
-                className={`w-6 h-6 ${isActive('/jobs') ? 'text-purple-600' : 'text-gray-400'} transition-colors`}
-              />
-              {isActive('/jobs') && <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-purple-600 rounded-full"></span>}
-            </div>
-            <span className={`text-[10px] font-medium ${isActive('/jobs') ? 'text-purple-600' : 'text-gray-500'} transition-colors`}>Jobs</span>
-          </Link>
-
           <Link href="/wallet" className="flex flex-col items-center gap-1 min-w-[50px] group">
             <div className="relative p-1.5">
               <Wallet 
