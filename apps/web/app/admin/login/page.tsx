@@ -17,7 +17,7 @@ export default function AdminLoginPage() {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/admin/auth', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/auth`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -26,16 +26,16 @@ export default function AdminLoginPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || 'حدث خطأ في تسجيل الدخول');
+        setError(data.error || 'Login failed');
         setLoading(false);
         return;
       }
 
-      // حفظ بيانات المسؤول
+      // Save admin data
       localStorage.setItem('adminUser', JSON.stringify(data.user));
       router.push('/admin/dashboard');
     } catch (error) {
-      setError('حدث خطأ في الاتصال بالخادم');
+      setError('Server connection error');
       setLoading(false);
     }
   };
@@ -47,8 +47,8 @@ export default function AdminLoginPage() {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
             <Shield className="w-8 h-8 text-blue-600" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">لوحة الإدارة</h1>
-          <p className="text-gray-500">تسجيل دخول المسؤولين</p>
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">Admin Dashboard</h1>
+          <p className="text-gray-500">Administrator Login</p>
         </div>
 
         {error && (
@@ -59,19 +59,19 @@ export default function AdminLoginPage() {
 
         <form onSubmit={handleLogin} className="space-y-6">
           <div>
-            <label className="block text-gray-700 font-medium mb-2">البريد الإلكتروني</label>
+            <label className="block text-gray-700 font-medium mb-2">Email</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="admin@example.com"
+              placeholder="admin@taskearn.com"
               required
             />
           </div>
 
           <div>
-            <label className="block text-gray-700 font-medium mb-2">كلمة المرور</label>
+            <label className="block text-gray-700 font-medium mb-2">Password</label>
             <input
               type="password"
               value={password}
@@ -87,13 +87,13 @@ export default function AdminLoginPage() {
             disabled={loading}
             className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
-            {loading ? 'جاري تسجيل الدخول...' : 'تسجيل الدخول'}
+            {loading ? 'Logging in...' : 'Sign In'}
           </button>
         </form>
 
         <div className="mt-6 text-center">
           <p className="text-gray-500 text-sm">
-            للوصول إلى لوحة الإدارة، يجب أن يكون لديك صلاحيات مسؤول
+            To access the admin dashboard, you must have admin permissions
           </p>
         </div>
       </div>

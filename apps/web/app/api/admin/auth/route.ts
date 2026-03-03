@@ -9,35 +9,42 @@ export async function POST(request: NextRequest) {
 
     if (!email || !password) {
       return NextResponse.json(
-        { error: 'البريد الإلكتروني وكلمة المرور مطلوبة' },
+        { error: 'Email and password are required' },
         { status: 400 }
       );
     }
 
-    // البحث عن المستخدم
+    // Get user from database
     const users = await sql`
-      SELECT id, email, password, name, role 
+      SELECT id, email, name, role, phone, avatar, bio, language, 
+             notifications_enabled, dark_mode, kyc_status, created_at
       FROM users 
-      WHERE email = ${email} AND password = ${password}
+      WHERE email = ${email} 
+      AND role = 'admin'
     `;
 
     if (users.length === 0) {
       return NextResponse.json(
-        { error: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' },
+        { error: 'Invalid credentials or not an admin' },
         { status: 401 }
       );
     }
 
     const user = users[0];
 
-    // التحقق من أن المستخدم مسؤول
-    if (user.role !== 'admin') {
+    // In production, you should hash passwords. For now, simple check
+    const passwordUsers = await sql`
+      SELECT password FROM users WHERE id = ${user.id}
+    `;
+
+    if (passwordUsers.length === 0 || passwordUsers[0].password !== password) {
       return NextResponse.json(
-        { error: 'ليس لديك صلاحية الوصول إلى لوحة الإدارة' },
-        { status: 403 }
+        { error: 'Invalid credentials' },
+        { status: 401 }
       );
     }
 
+    // Return user data without password
     return NextResponse.json({
       success: true,
       user: {
@@ -45,12 +52,20 @@ export async function POST(request: NextRequest) {
         email: user.email,
         name: user.name,
         role: user.role,
-      },
+        phone: user.phone,
+        avatar: user.avatar,
+        bio: user.bio,
+        language: user.language,
+        notifications_enabled: user.notifications_enabled,
+        dark_mode: user.dark_mode,
+        kyc_status: user.kyc_status,
+        created_at: user.created_at
+      }
     });
   } catch (error) {
-    console.error('Admin auth error:', error);
+    console.error('Admin login error:', error);
     return NextResponse.json(
-      { error: 'حدث خطأ في تسجيل الدخول' },
+      { error: 'Server error' },
       { status: 500 }
     );
   }
