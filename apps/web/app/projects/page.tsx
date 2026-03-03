@@ -134,31 +134,47 @@ export default function ProjectsPage() {
   };
 
   const createProject = async (formData: any) => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-    const res = await fetch(`${apiUrl}/api/projects`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'create', ...formData })
-    });
-    const data = await res.json();
-    if (data.success) {
-      setProjects([data.project, ...projects]);
-      setShowCreateModal(false);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+      const res = await fetch(`${apiUrl}/api/projects`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'create', ...formData })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setProjects([data.project, ...projects]);
+        setShowCreateModal(false);
+        alert('✅ تم إنشاء المشروع بنجاح!');
+      } else {
+        alert(data.error || 'فشل في إنشاء المشروع');
+      }
+    } catch (error) {
+      console.error('Error creating project:', error);
+      alert('حدث خطأ أثناء إنشاء المشروع');
     }
   };
 
   const submitProposal = async (formData: any) => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-    const res = await fetch(`${apiUrl}/api/projects`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'submit_proposal', projectId: selectedProject.id, ...formData })
-    });
-    const data = await res.json();
-    if (data.success) {
-      setShowProposalModal(false);
-      fetchProposals(selectedProject.id);
-      fetchProjects();
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+      const res = await fetch(`${apiUrl}/api/projects`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'submit_proposal', projectId: selectedProject.id, ...formData })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setShowProposalModal(false);
+        fetchProposals(selectedProject.id);
+        fetchProjects();
+        alert('✅ تم تقديم العرض بنجاح!');
+      } else {
+        alert(data.error || 'فشل في تقديم العرض');
+      }
+    } catch (error) {
+      console.error('Error submitting proposal:', error);
+      alert('حدث خطأ أثناء تقديم العرض');
     }
   };
 
@@ -219,16 +235,24 @@ export default function ProjectsPage() {
   };
 
   const submitDeliverable = async (formData: any) => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-    const res = await fetch(`${apiUrl}/api/projects`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'submit_deliverable', projectId: selectedProject.id, ...formData })
-    });
-    const data = await res.json();
-    if (data.success) {
-      setShowDeliverableModal(false);
-      fetchDeliverables(selectedProject.id);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+      const res = await fetch(`${apiUrl}/api/projects`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'submit_deliverable', projectId: selectedProject.id, ...formData })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setShowDeliverableModal(false);
+        fetchDeliverables(selectedProject.id);
+        alert('✅ تم رفع المسلم بنجاح!');
+      } else {
+        alert(data.error || 'فشل في رفع المسلم');
+      }
+    } catch (error) {
+      console.error('Error submitting deliverable:', error);
+      alert('حدث خطأ أثناء رفع المسلم');
     }
   };
 
@@ -284,31 +308,47 @@ export default function ProjectsPage() {
   };
 
   const rateProject = async (formData: any) => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-    const res = await fetch(`${apiUrl}/api/projects`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'rate_project', projectId: selectedProject.id, ...formData })
-    });
-    const data = await res.json();
-    if (data.success) {
-      setShowRatingModal(false);
-      fetchProjects();
-      setSelectedProject(data.project);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+      const res = await fetch(`${apiUrl}/api/projects`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'rate_project', projectId: selectedProject.id, ...formData })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setShowRatingModal(false);
+        fetchProjects();
+        setSelectedProject(data.project);
+        alert('✅ تم تقييم المشروع بنجاح!');
+      } else {
+        alert(data.error || 'فشل في تقييم المشروع');
+      }
+    } catch (error) {
+      console.error('Error rating project:', error);
+      alert('حدث خطأ أثناء تقييم المشروع');
     }
   };
 
   const cancelProject = async (reason: string) => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-    const res = await fetch(`${apiUrl}/api/projects`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'cancel_project', projectId: selectedProject.id, reason })
-    });
-    const data = await res.json();
-    if (data.success) {
-      fetchProjects();
-      setSelectedProject(data.project);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+      const res = await fetch(`${apiUrl}/api/projects`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'cancel_project', projectId: selectedProject.id, reason })
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchProjects();
+        setSelectedProject(data.project);
+        alert('تم إلغاء المشروع');
+      } else {
+        alert(data.error || 'فشل في إلغاء المشروع');
+      }
+    } catch (error) {
+      console.error('Error canceling project:', error);
+      alert('حدث خطأ أثناء إلغاء المشروع');
     }
   };
 

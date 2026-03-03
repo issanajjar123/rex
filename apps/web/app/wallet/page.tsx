@@ -181,9 +181,10 @@ function WalletContent() {
       });
 
       if (response.ok) {
-        alert('تم الإيداع بنجاح');
+        alert('✅ تم الإيداع بنجاح!');
         setShowDepositModal(false);
         setAmount('');
+        setDepositMethod('card');
         fetchWallet();
         fetchTransactions();
       } else {
@@ -233,9 +234,10 @@ function WalletContent() {
       });
 
       if (response.ok) {
-        alert('تم إرسال طلب السحب بنجاح. سيتم معالجته خلال 1-3 أيام عمل.');
+        alert('✅ تم إرسال طلب السحب بنجاح! سيتم معالجته خلال 1-3 أيام عمل.');
         setShowWithdrawModal(false);
         setAmount('');
+        setSelectedPaymentMethod(null);
         fetchWallet();
         fetchTransactions();
         fetchWithdrawalRequests();
