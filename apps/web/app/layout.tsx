@@ -13,7 +13,7 @@ export default function RootLayout({
   const pathname = usePathname();
   
   // Pages that don't require authentication
-  const publicPages = ['/auth/signin', '/auth/signup', '/auth/forgot-password', '/privacy-policy'];
+  const publicPages = ['/auth/signin', '/auth/signup', '/auth/forgot-password', '/privacy-policy', '/admin/login'];
   const isPublicPage = publicPages.some(page => pathname?.startsWith(page));
 
   return (
