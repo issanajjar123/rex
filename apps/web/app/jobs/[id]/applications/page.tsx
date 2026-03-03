@@ -25,12 +25,6 @@ type Job = {
   status: string;
 };
 
-// Required for static export with dynamic routes
-export async function generateStaticParams() {
-  // Return empty array - dynamic routes will be handled at runtime
-  return [];
-}
-
 export default function ApplicationsPage() {
   const { user } = useAuthStore();
   const router = useRouter();
