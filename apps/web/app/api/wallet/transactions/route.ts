@@ -1,27 +1,26 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 
 const sql = neon(process.env.DATABASE_URL!);
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId');
-
+    const userId = request.headers.get('x-user-id');
+    
     if (!userId) {
-      return NextResponse.json({ error: 'معرف المستخدم مطلوب' }, { status: 400 });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const transactions = await sql`
-      SELECT * FROM wallet_transactions 
-      WHERE user_id = ${userId}
+      SELECT * FROM wallet_transactions
+      WHERE user_id = ${parseInt(userId)}
       ORDER BY created_at DESC
       LIMIT 50
     `;
 
     return NextResponse.json(transactions);
-  } catch (error) {
-    console.error('خطأ في جلب المعاملات:', error);
-    return NextResponse.json({ error: 'حدث خطأ في الخادم' }, { status: 500 });
+  } catch (error: any) {
+    console.error('Transactions fetch error:', error);
+    return NextResponse.json({ error: error.message || 'Failed to fetch transactions' }, { status: 500 });
   }
 }
