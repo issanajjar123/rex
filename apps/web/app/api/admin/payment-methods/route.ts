@@ -9,30 +9,65 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const userId = searchParams.get('userId');
 
-    let query = `
-      SELECT 
-        pm.*,
-        u.name as user_name,
-        u.email as user_email,
-        u.phone as user_phone,
-        approver.name as approved_by_name
-      FROM payment_methods pm
-      JOIN users u ON pm.user_id = u.id
-      LEFT JOIN users approver ON pm.approved_by = approver.id
-      WHERE 1=1
-    `;
+    let paymentMethods;
 
-    if (status && status !== 'all') {
-      query += ` AND pm.approval_status = '${status}'`;
+    if (status && status !== 'all' && userId) {
+      paymentMethods = await sql`
+        SELECT 
+          pm.*,
+          u.name as user_name,
+          u.email as user_email,
+          u.phone as user_phone,
+          approver.name as approved_by_name
+        FROM payment_methods pm
+        JOIN users u ON pm.user_id = u.id
+        LEFT JOIN users approver ON pm.approved_by = approver.id
+        WHERE pm.approval_status = ${status}
+        AND pm.user_id = ${userId}
+        ORDER BY pm.created_at DESC
+      `;
+    } else if (status && status !== 'all') {
+      paymentMethods = await sql`
+        SELECT 
+          pm.*,
+          u.name as user_name,
+          u.email as user_email,
+          u.phone as user_phone,
+          approver.name as approved_by_name
+        FROM payment_methods pm
+        JOIN users u ON pm.user_id = u.id
+        LEFT JOIN users approver ON pm.approved_by = approver.id
+        WHERE pm.approval_status = ${status}
+        ORDER BY pm.created_at DESC
+      `;
+    } else if (userId) {
+      paymentMethods = await sql`
+        SELECT 
+          pm.*,
+          u.name as user_name,
+          u.email as user_email,
+          u.phone as user_phone,
+          approver.name as approved_by_name
+        FROM payment_methods pm
+        JOIN users u ON pm.user_id = u.id
+        LEFT JOIN users approver ON pm.approved_by = approver.id
+        WHERE pm.user_id = ${userId}
+        ORDER BY pm.created_at DESC
+      `;
+    } else {
+      paymentMethods = await sql`
+        SELECT 
+          pm.*,
+          u.name as user_name,
+          u.email as user_email,
+          u.phone as user_phone,
+          approver.name as approved_by_name
+        FROM payment_methods pm
+        JOIN users u ON pm.user_id = u.id
+        LEFT JOIN users approver ON pm.approved_by = approver.id
+        ORDER BY pm.created_at DESC
+      `;
     }
-
-    if (userId) {
-      query += ` AND pm.user_id = ${userId}`;
-    }
-
-    query += ` ORDER BY pm.created_at DESC`;
-
-    const paymentMethods = await sql(query);
 
     return NextResponse.json({ paymentMethods });
   } catch (error: any) {
