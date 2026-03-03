@@ -2,17 +2,33 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, MessageCircle, Briefcase, Search, Wallet, Tag } from 'lucide-react';
+import { Home, MessageCircle, Briefcase, Search, Wallet, Tag, Menu } from 'lucide-react';
+import { useState } from 'react';
+import Sidebar from './Sidebar';
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const isActive = (path: string) => pathname === path;
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 w-full z-50 bg-white border-t border-gray-200 shadow-lg">
-      <div className="relative w-full pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2">
-        <div className="flex items-center justify-around w-full px-2">
+    <>
+      <nav className="fixed bottom-0 left-0 right-0 w-full z-50 bg-white border-t border-gray-200 shadow-lg">
+        <div className="relative w-full pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2">
+          <div className="flex items-center justify-around w-full px-2">
+            
+            <button 
+              onClick={() => setSidebarOpen(true)}
+              className="flex flex-col items-center gap-1 min-w-[50px] group"
+            >
+              <div className="relative p-1.5">
+                <Menu 
+                  className="w-6 h-6 text-gray-400 transition-colors"
+                />
+              </div>
+              <span className="text-[10px] font-medium text-gray-500 transition-colors">القائمة</span>
+            </button>
           
           <Link href="/" className="flex flex-col items-center gap-1 min-w-[50px] group">
             <div className="relative p-1.5">
@@ -71,5 +87,8 @@ export default function BottomNav() {
         </div>
       </div>
     </nav>
+
+    <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+    </>
   );
 }
