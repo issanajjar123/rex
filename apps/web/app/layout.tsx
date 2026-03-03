@@ -15,6 +15,7 @@ export default function RootLayout({
   // Pages that don't require authentication
   const publicPages = ['/auth/signin', '/auth/signup', '/auth/forgot-password', '/privacy-policy', '/admin/login'];
   const isPublicPage = publicPages.some(page => pathname?.startsWith(page));
+  const isAdminPage = pathname?.startsWith('/admin');
 
   return (
     <html lang="ar" dir="rtl">
@@ -27,8 +28,8 @@ export default function RootLayout({
       </head>
       <body className="antialiased" style={{ fontFamily: "'Cairo', sans-serif" }}>
         <AppGenProvider>
-          <main className="pb-20">
-            {isPublicPage ? children : <ProtectedRoute>{children}</ProtectedRoute>}
+          <main className={isAdminPage ? "" : "pb-20"}>
+            {isPublicPage || isAdminPage ? children : <ProtectedRoute>{children}</ProtectedRoute>}
           </main>
         </AppGenProvider>
       </body>
