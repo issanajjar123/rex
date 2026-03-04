@@ -3,6 +3,19 @@
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '../../../lib/auth-store';
 import { useRouter, useParams } from 'next/navigation';
+
+export async function generateStaticParams() {
+  try {
+    const response = await fetch(`${process.env.DATABASE_URL ? 'http://localhost:3000' : ''}/api/jobs`);
+    const jobs = await response.json();
+    return jobs.map((job: any) => ({
+      id: job.id.toString()
+    }));
+  } catch (error) {
+    console.error('Error generating static params:', error);
+    return [];
+  }
+}
 import { ArrowLeft, CheckCircle, XCircle, User, FileText, ExternalLink, MessageCircle } from 'lucide-react';
 
 type Application = {
