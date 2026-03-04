@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import StatsCard from '../../components/admin/StatsCard';
 import { 
   Users, 
@@ -50,13 +51,15 @@ export default function AdminDashboardPage() {
 
       {/* الإحصائيات الرئيسية */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <StatsCard
-          title="إجمالي المستخدمين"
-          value={stats?.users?.total || 0}
-          icon={Users}
-          color="bg-blue-500"
-          subtitle={`${stats?.users?.newToday || 0} جديد اليوم`}
-        />
+        <Link href="/admin/users">
+          <StatsCard
+            title="إجمالي المستخدمين"
+            value={stats?.users?.total || 0}
+            icon={Users}
+            color="bg-blue-500"
+            subtitle={`${stats?.users?.newToday || 0} جديد اليوم`}
+          />
+        </Link>
         <StatsCard
           title="الوظائف النشطة"
           value={stats?.jobs?.active || 0}
