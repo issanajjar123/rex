@@ -9,35 +9,84 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const userId = searchParams.get('userId');
 
-    let query = `
-      SELECT 
-        wr.*,
-        u.name as user_name,
-        u.email as user_email,
-        u.phone as user_phone,
-        pm.method_type,
-        pm.provider,
-        pm.account_holder_name,
-        pm.account_number,
-        pm.bank_name,
-        pm.paypal_email
-      FROM withdrawal_requests wr
-      JOIN users u ON wr.user_id = u.id
-      LEFT JOIN payment_methods pm ON wr.payment_method_id = pm.id
-      WHERE 1=1
-    `;
+    let withdrawalRequests: any[];
 
-    if (status && status !== 'all') {
-      query += ` AND wr.status = '${status}'`;
+    if (status && status !== 'all' && userId) {
+      withdrawalRequests = await sql`
+        SELECT 
+          wr.*,
+          u.name as user_name,
+          u.email as user_email,
+          u.phone as user_phone,
+          pm.method_type,
+          pm.provider,
+          pm.account_holder_name,
+          pm.account_number,
+          pm.bank_name,
+          pm.paypal_email
+        FROM withdrawal_requests wr
+        JOIN users u ON wr.user_id = u.id
+        LEFT JOIN payment_methods pm ON wr.payment_method_id = pm.id
+        WHERE wr.status = ${status} AND wr.user_id = ${parseInt(userId)}
+        ORDER BY wr.created_at DESC
+      `;
+    } else if (status && status !== 'all') {
+      withdrawalRequests = await sql`
+        SELECT 
+          wr.*,
+          u.name as user_name,
+          u.email as user_email,
+          u.phone as user_phone,
+          pm.method_type,
+          pm.provider,
+          pm.account_holder_name,
+          pm.account_number,
+          pm.bank_name,
+          pm.paypal_email
+        FROM withdrawal_requests wr
+        JOIN users u ON wr.user_id = u.id
+        LEFT JOIN payment_methods pm ON wr.payment_method_id = pm.id
+        WHERE wr.status = ${status}
+        ORDER BY wr.created_at DESC
+      `;
+    } else if (userId) {
+      withdrawalRequests = await sql`
+        SELECT 
+          wr.*,
+          u.name as user_name,
+          u.email as user_email,
+          u.phone as user_phone,
+          pm.method_type,
+          pm.provider,
+          pm.account_holder_name,
+          pm.account_number,
+          pm.bank_name,
+          pm.paypal_email
+        FROM withdrawal_requests wr
+        JOIN users u ON wr.user_id = u.id
+        LEFT JOIN payment_methods pm ON wr.payment_method_id = pm.id
+        WHERE wr.user_id = ${parseInt(userId)}
+        ORDER BY wr.created_at DESC
+      `;
+    } else {
+      withdrawalRequests = await sql`
+        SELECT 
+          wr.*,
+          u.name as user_name,
+          u.email as user_email,
+          u.phone as user_phone,
+          pm.method_type,
+          pm.provider,
+          pm.account_holder_name,
+          pm.account_number,
+          pm.bank_name,
+          pm.paypal_email
+        FROM withdrawal_requests wr
+        JOIN users u ON wr.user_id = u.id
+        LEFT JOIN payment_methods pm ON wr.payment_method_id = pm.id
+        ORDER BY wr.created_at DESC
+      `;
     }
-
-    if (userId) {
-      query += ` AND wr.user_id = ${userId}`;
-    }
-
-    query += ` ORDER BY wr.created_at DESC`;
-
-    const withdrawalRequests = await sql(query);
 
     return NextResponse.json({ withdrawalRequests });
   } catch (error: any) {
