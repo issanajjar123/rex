@@ -9,27 +9,52 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get('type');
     const userId = searchParams.get('userId');
 
-    let query = `
-      SELECT 
-        wt.*,
-        u.name as user_name,
-        u.email as user_email
-      FROM wallet_transactions wt
-      JOIN users u ON wt.user_id = u.id
-      WHERE 1=1
-    `;
+    let transactions;
 
-    if (type && type !== 'all') {
-      query += ` AND wt.type = '${type}'`;
+    if (type && type !== 'all' && userId) {
+      transactions = await sql`
+        SELECT 
+          wt.*,
+          u.name as user_name,
+          u.email as user_email
+        FROM wallet_transactions wt
+        JOIN users u ON wt.user_id = u.id
+        WHERE wt.type = ${type} AND wt.user_id = ${userId}
+        ORDER BY wt.created_at DESC LIMIT 100
+      `;
+    } else if (type && type !== 'all') {
+      transactions = await sql`
+        SELECT 
+          wt.*,
+          u.name as user_name,
+          u.email as user_email
+        FROM wallet_transactions wt
+        JOIN users u ON wt.user_id = u.id
+        WHERE wt.type = ${type}
+        ORDER BY wt.created_at DESC LIMIT 100
+      `;
+    } else if (userId) {
+      transactions = await sql`
+        SELECT 
+          wt.*,
+          u.name as user_name,
+          u.email as user_email
+        FROM wallet_transactions wt
+        JOIN users u ON wt.user_id = u.id
+        WHERE wt.user_id = ${userId}
+        ORDER BY wt.created_at DESC LIMIT 100
+      `;
+    } else {
+      transactions = await sql`
+        SELECT 
+          wt.*,
+          u.name as user_name,
+          u.email as user_email
+        FROM wallet_transactions wt
+        JOIN users u ON wt.user_id = u.id
+        ORDER BY wt.created_at DESC LIMIT 100
+      `;
     }
-
-    if (userId) {
-      query += ` AND wt.user_id = ${userId}`;
-    }
-
-    query += ` ORDER BY wt.created_at DESC LIMIT 100`;
-
-    const transactions = await sql(query);
 
     return NextResponse.json({ transactions });
   } catch (error: any) {
