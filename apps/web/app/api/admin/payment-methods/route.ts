@@ -92,11 +92,12 @@ export async function PATCH(request: NextRequest) {
     }
 
     if (action === 'approve') {
+      const adminIdNum = parseInt(adminId as string);
       await sql`
         UPDATE payment_methods
         SET 
           approval_status = 'approved',
-          approved_by = ${adminId},
+          approved_by = ${adminIdNum},
           approved_at = NOW(),
           is_verified = true
         WHERE id = ${id}
@@ -109,11 +110,12 @@ export async function PATCH(request: NextRequest) {
         );
       }
 
+      const adminIdNum = parseInt(adminId as string);
       await sql`
         UPDATE payment_methods
         SET 
           approval_status = 'rejected',
-          approved_by = ${adminId},
+          approved_by = ${adminIdNum},
           approved_at = NOW(),
           rejection_reason = ${reason},
           is_verified = false
